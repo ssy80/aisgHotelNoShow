@@ -1,0 +1,47 @@
+
+
+steps in eda
+
+Use a histogram when:
+You have a numeric column
+    Examples:
+    price
+    num_children
+    num_adults
+    arrival_day
+    checkout_day
+You want to check the shape of data
+    Is it normal (bell-shaped)?
+    Is it skewed (many small or large values)?
+    Are there outliers (extreme values far from most data)?
+    Are values bimodal or multimodal (two or more peaks)?
+You want to decide preprocessing steps
+    If highly skewed → you might apply a log transform before modeling.
+    If there are extreme outliers → you might clip or winsorize.
+    If discrete small integers → histogram shows if a bar plot is better.
+
+
+Don’t use histograms for:
+
+Categorical variables like branch, country, or platform.
+→ Use a bar chart instead (histogram assumes numeric bins).
+
+
+value_counts = df[feature].value_counts()           - will not count row with null column value ?
+You are correct. By default, value_counts() does not include rows where the column value is null (NaN).
+
+
+Your Variable Types	Best Graphs to Plot
+Numerical vs. Numerical	1. Scatter Plot
+2. Line Plot (for time series)
+3. Heatmap (for correlation)
+Categorical vs. Numerical	1. Box Plot (Box-and-Whisker)
+2. Violin Plot
+3. Bar Plot (with means)
+4. Histogram / Density Plot (facetted)
+Categorical vs. Categorical	1. Stacked Bar Plot
+2. Grouped Bar Plot
+3. Mosaic Plot
+4. Heatmap (with counts)
+
+

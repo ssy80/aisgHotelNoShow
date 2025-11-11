@@ -1,0 +1,111 @@
+For Regression (predicting continuous values):
+python
+
+# In your config
+scoring_metric = 'neg_mean_squared_error'      # Most common
+scoring_metric = 'neg_root_mean_squared_error' # RMSE (more interpretable)
+scoring_metric = 'neg_mean_absolute_error'     # MAE (robust to outliers)
+scoring_metric = 'r2'                          # R-squared
+scoring_metric = 'max_error'                   # Worst-case error
+
+For Classification (predicting categories):
+python
+
+scoring_metric = 'accuracy'                    # Overall correctness
+scoring_metric = 'f1'                          # Balance of precision/recall
+scoring_metric = 'f1_macro'                    # Multi-class F1
+scoring_metric = 'precision'                   # Avoid false positives
+scoring_metric = 'recall'                      # Avoid false negatives
+scoring_metric = 'roc_auc'                     # Overall performance
+
+'accuracy', 'f1', 'f1_macro', 'precision', 'recall', 'roc_auc'
+
+
+
+
+Summary Table
+Model	Pros	Cons	Best For
+Logistic Regression	Fast, interpretable, probabilistic	Linear assumptions	Baselines, binary classification
+Decision Tree	Interpretable, handles non-linearity	Prone to overfitting	Understanding data structure
+Random Forest	Powerful, reduces overfitting	Less interpretable, slower	General-purpose, tabular data
+XGBoost/LightGBM	Very high accuracy, tunable	Complex, can overfit	Competitions, high-accuracy needs
+SVM	Effective in high dimensions, kernels	Memory intensive, slow on big data	Complex, small-to-medium datasets
+k-NN	Simple, no training	Slow prediction, sensitive to scale	Small datasets with low dimensions
+Naive Bayes	Very fast, good for high-dimensions	Strong independence assumptions	Text classification
+Neural Networks	Highly powerful for complex patterns	Black box, needs lots of data	Images, speech, text, complex patterns
+Recommendation: For most standard classification problems on tabular data, start with Logistic Regression as a baseline, then move to Random Forest or XGBoost to see if you can get a significant performance boost.
+
+
+Summary Table
+Model	Pros	Cons	Best For
+Linear Regression	Simple, fast, interpretable	Strong linear assumptions	Baselines, interpretable models
+Ridge Regression	Handles multicollinearity, reduces overfitting	Biases coefficients, less interpretable	Correlated features, preventing overfitting
+Lasso Regression	Performs feature selection	Unstable with correlated features	Datasets with many irrelevant features
+Decision Tree	Interpretable, non-linear	Prone to overfitting	Understanding non-linear data structure
+Random Forest	Powerful, robust, reduces overfitting	Slower, less interpretable	General-purpose, high accuracy on tabular data
+XGBoost/LightGBM	Very high accuracy, tunable	Complex, can overfit	Competitions, state-of-the-art accuracy
+SVR	Handles non-linearity with kernels, high-dim	Sensitive to hyperparameters, slow	Complex, small-to-medium datasets
+k-NN Regressor	Simple, no training, adaptive	Slow prediction, sensitive to scale	Small datasets with low dimensions
+Neural Networks	Extremely powerful for complex patterns	Data-hungry, black box, complex	Very complex problems (e.g., image regression)
+Final Recommendation: The standard workflow for regression is remarkably consistent:
+
+    Baseline: LinearRegression or Ridge
+
+    Power & Accuracy: RandomForestRegressor or XGBRegressor / LGBMRegressor
+
+This approach ensures you have a robust benchmark before investing time in more complex, but potentially more accurate, models.
+
+
+
+
+When creating a SelectKBest, you specify the scoring function using score_func.
+Typical ones include:
+
+Type of Problem	Scoring Function	Description
+Classification	chi2	Chi-squared test (only for non-negative features)
+	f_classif	ANOVA F-test (default for classification)
+	mutual_info_classif	Mutual information between each feature and target
+Regression	f_regression	ANOVA F-test for regression
+	mutual_info_regression	Mutual information for regression
+
+
+feature_selection_score_func: f_classif
+feature_selection_k: 10
+
+# Most common industry approach
+def most_popular_approach(X, y):
+    # 1. Quick filter
+    selector = SelectKBest(f_classif, k=min(50, X.shape[1]//2))
+    X_temp = selector.fit_transform(X, y)
+    
+    # 2. Refined selection
+    xgb = XGBClassifier(n_estimators=100, random_state=42)
+    rfe = RFE(estimator=xgb, n_features_to_select=min(20, X_temp.shape[1]))
+    X_final = rfe.fit_transform(X_temp, y)
+    
+    return X_final
+
+
+RFE vs SelectKBest
+Aspect	                        RFE	                    SelectKBest
+Method	                        Model-based (wrapper)	Statistical test (filter)
+Needs Model?	                ✅ Yes	                ❌ No
+Captures Feature Interactions	✅ Yes	                ❌ No
+Speed	                        ⏳ Slower	            ⚡ Faster
+Robustness	                    ✅ Higher	            ⚠️ Lower
+                        Typical Use	Smaller datasets	Large datasets with many features
+
+
+
+GridSearchCV(
+    estimator,           # the model or pipeline
+    param_grid,          # dict of hyperparameters
+    scoring=None,
+    n_jobs=None,
+    cv=None,
+    refit=True,
+    verbose=0,
+    pre_dispatch='2*n_jobs',
+    error_score=np.nan,
+    return_train_score=False
+)
