@@ -7,22 +7,33 @@ from sklearn.metrics import (
     roc_auc_score, confusion_matrix, classification_report
 )
 import os
-from utils.helpers import setup_logging
+from utils.helper import setup_logging, safe_get
+import logging
 
 class ModelEvaluator:
+    """?"""
+
     def __init__(self, config: dict):
+        """?"""
+
+        if config is None:
+            raise ValueError(f"ModelEvaluator __init__: config cannot be None")
+
         self.config = config
-        self.logger = setup_logging()
+        
+        setup_logging()
+        self.logger = logging.getLogger(self.__class__.__module__ + '.' + self.__class__.__name__)
         
     def evaluate_model(self, model, X_test, y_test):
         """Comprehensive model evaluation"""
+        
         # Predictions
         y_pred = model.predict(X_test)
         y_pred_proba = model.predict_proba(X_test) if hasattr(model, 'predict_proba') else None
         
         # Calculate metrics
         metrics = {}
-        evaluation_metrics = self.config['evaluation']['metrics']
+        evaluation_metrics = safe_get(self.config, 'evaluation', 'metrics', required=True)   
         
         if 'accuracy' in evaluation_metrics:
             metrics['accuracy'] = accuracy_score(y_test, y_pred)
@@ -45,14 +56,16 @@ class ModelEvaluator:
         self.logger.info(f"Test Accuracy: {metrics.get('accuracy', 'N/A'):.4f}")
         
         # Save reports if configured
-        if self.config['evaluation']['save_reports']:
+        save_reports = safe_get(self.config, 'evaluation', 'save_reports', required=True)
+        if save_reports:
             self.save_evaluation_reports(metrics, cm, class_report, y_test, y_pred)
         
         return metrics, cm, class_report
     
     def save_evaluation_reports(self, metrics, cm, class_report, y_test, y_pred):
         """Save evaluation reports and plots"""
-        reports_path = self.config['evaluation']['reports_path']
+
+        reports_path = safe_get(self.config, 'evaluation', 'reports_path', required=True)
         os.makedirs(reports_path, exist_ok=True)
         
         # Save metrics to CSV

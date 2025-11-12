@@ -1,53 +1,45 @@
-from sklearn.base import BaseEstimator
 from sklearn.feature_selection import SelectFromModel
-from sklearn.ensemble import RandomForestClassifier
 import pandas as pd
+from utils.helper import safe_get
 
 class FeatureSelector:
-    """
-    Model-based feature selector using feature importances from RandomForestClassifier.
-    Automatically selects top features based on a threshold (median importance by default).
-    """
+    """?"""
 
-    def __init__(self, config, model=None):
+    def __init__(self, config: dict, model=None):
+        """?"""
+
+        if config is None:
+            raise ValueError(f"FeatureSelector __init__: config cannot be None")
+
         self.config = config
-        self.threshold = config.get('feature', {}).get('feature_selection_threshold', 'median') #mean
-        '''self.model = RandomForestClassifier(
-            n_estimators=100, 
-            random_state=config.get('seed', 42),
-            n_jobs=-1
-        )'''
         self.model = model
+        threshold = safe_get(self.config, 'feature_selection', 'feature_selection_threshold', required=True)
+        self.threshold = threshold
         self.selector = None
-        self.selected_columns_ = None
+        self.selected_columns = None
+
+        if model is None or threshold is None:
+            raise ValueError(f"FeatureSelector __init__ model, threshold cannot be None")
 
     def select_features(self, X_train, y_train, X_test):
+        """?"""
 
-        print(self.model)
-
-
-        # 2. Create SelectFromModel using feature importances
-        #self.selector = SelectFromModel(self.model, threshold=self.threshold, prefit=True)
+        # Init selector
         self.selector = SelectFromModel(self.model, threshold=self.threshold)
 
-        # 1. Fit on training data
-        #self.model.fit(X_train, y_train)
-        # 2. Fit on training data
+        # Fit on training data
         self.selector.fit(X_train, y_train)
 
-
-        # 3. Transform datasets
+        # Transform datasets
         X_train_sel = self.selector.transform(X_train)
         X_test_sel  = self.selector.transform(X_test)
 
-        # 4. Get selected feature names
+        # Get selected feature names
         mask = self.selector.get_support()
-        self.selected_columns_ = X_train.columns[mask].tolist()
+        self.selected_columns = X_train.columns[mask].tolist()
 
-        # 5. Wrap as DataFrame to preserve column names
-        X_train_sel = pd.DataFrame(X_train_sel, columns=self.selected_columns_, index=X_train.index)
-        X_test_sel  = pd.DataFrame(X_test_sel,  columns=self.selected_columns_, index=X_test.index)
-
-        print(f"Selected features ({len(self.selected_columns_)}): {self.selected_columns_}")
+        # Wrap as DataFrame to preserve column names
+        X_train_sel = pd.DataFrame(X_train_sel, columns=self.selected_columns, index=X_train.index)
+        X_test_sel  = pd.DataFrame(X_test_sel,  columns=self.selected_columns, index=X_test.index)
 
         return X_train_sel, X_test_sel, self.selector

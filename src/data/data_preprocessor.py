@@ -1,12 +1,10 @@
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler, OneHotEncoder, LabelEncoder, RobustScaler, MinMaxScaler
-from sklearn.impute import SimpleImputer
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
-from utils.helpers import setup_logging
+from utils.helper import setup_logging, safe_get
 import logging
-from sklearn.preprocessing import FunctionTransformer
 from data.transformers.lowercase_transformer import LowercaseTransformer
 from data.transformers.int_transformer import IntTransformer
 from data.transformers.checkout_day_transformer import CheckoutDayTransformer
@@ -15,7 +13,6 @@ from data.transformers.first_time_transformer import FirstTimeTransformer
 from data.transformers.month_transformer import MonthTransformer
 from data.transformers.price_transformer import PriceTransformer
 from data.imputers.price_imputer import PriceImputer
-#from data.imputers.modeRoomImputer import ModeRoomImputer
 from data.imputers.room_imputer import RoomImputer
 from data.transformers.has_children_transformer import HasChildrenTransformer
 from data.transformers.stayed_days_transformer import StayedDaysTransformer
@@ -25,8 +22,13 @@ from data.transformers.drop_columns_transformer import DropColumnsTransformer
 from sklearn.model_selection import train_test_split
 
 
+
 class DataPreprocessor:
     def __init__(self, config: dict):
+
+        if config is None:
+            raise ValueError(f"DataPreprocessor __init__: config cannot be None")
+
         self.config = config
         self.data_preprocessor = None
 
@@ -45,49 +47,29 @@ class DataPreprocessor:
     def create_preprocessing_pipeline(self) -> Pipeline:
         """Create preprocessing pipeline based on configuration"""
 
-        config_column_mappings = self.config['preprocessing']['column_mappings']
+        config_column_mappings = safe_get(self.config, 'preprocessing', 'column_mappings', required=True)
 
-        booking_id = config_column_mappings['identifier']['booking_id']
-        no_show = config_column_mappings['target']['no_show']
-        branch = config_column_mappings['categorical']['branch']
-        booking_month = config_column_mappings['temporal']['booking_month']
-        arrival_month = config_column_mappings['temporal']['arrival_month']
-        arrival_day = config_column_mappings['temporal']['arrival_day']
-        checkout_month = config_column_mappings['temporal']['checkout_month']
-        checkout_day = config_column_mappings['temporal']['checkout_day']
-        country = config_column_mappings['categorical']['country']
-        first_time = config_column_mappings['boolean']['first_time']
-        room = config_column_mappings['categorical']['room']
-        price = config_column_mappings['numerical']['price']
-        platform = config_column_mappings['categorical']['platform']
-        num_adults = config_column_mappings['numerical']['num_adults']
-        num_children = config_column_mappings['numerical']['num_children']
+        booking_id = safe_get(config_column_mappings, 'identifier', 'booking_id', required=True)
+        no_show = safe_get(config_column_mappings, 'target', 'no_show', required=True)
+        branch = safe_get(config_column_mappings, 'categorical', 'branch', required=True)
+        booking_month = safe_get(config_column_mappings, 'temporal', 'booking_month', required=True)
+        arrival_month = safe_get(config_column_mappings, 'temporal', 'arrival_month', required=True)
+        arrival_day = safe_get(config_column_mappings, 'temporal', 'arrival_day', required=True)
+        checkout_month = safe_get(config_column_mappings, 'temporal', 'checkout_month', required=True)
+        checkout_day = safe_get(config_column_mappings, 'temporal', 'checkout_day', required=True)
+        country = safe_get(config_column_mappings, 'categorical', 'country', required=True)
+        first_time = safe_get(config_column_mappings, 'boolean', 'first_time', required=True)
+        room = safe_get(config_column_mappings, 'categorical', 'room', required=True)
+        price = safe_get(config_column_mappings, 'numerical', 'price', required=True)
+        platform = safe_get(config_column_mappings, 'categorical', 'platform', required=True)
+        num_adults = safe_get(config_column_mappings, 'numerical', 'num_adults', required=True)
+        num_children = safe_get(config_column_mappings, 'numerical', 'num_children', required=True)
 
-        impute_room_strategy = self.config['preprocessing']['impute_room_strategy']
-        impute_price_strategy = self.config['preprocessing']['impute_price_strategy']
-        
-        all_features = [
-            booking_id,
-            no_show,
-            branch,
-            booking_month,
-            arrival_month,
-            checkout_month,
-            checkout_day,
-            country,
-            first_time,
-            room,
-            price,
-            platform,
-            num_adults,
-            num_children
-        ]
-
-        if not self.validate_config(all_features):
-            raise ValueError("Missing feature name in config")
+        impute_room_strategy = safe_get(self.config, 'preprocessing', 'impute_room_strategy', required=True)
+        impute_price_strategy = safe_get(self.config, 'preprocessing', 'impute_price_strategy', required=True)
     
         lowercase_features = [branch, booking_month, arrival_month, checkout_month, country, first_time, num_adults, platform, room, price]
-        int_features = [arrival_day, num_children, checkout_day]#, num_adults, first_time]
+        int_features = [arrival_day, num_children, checkout_day]
 
         cyclical_features = {
             arrival_month: 12,
@@ -100,11 +82,9 @@ class DataPreprocessor:
         drop_features = [booking_id]
         month_features = [booking_month, arrival_month, checkout_month]
         robust_features = [price]
-        minmax_features = [num_adults]#, num_children]
+        minmax_features = [num_adults, num_children]
         one_hot_features = [branch, country, room, platform]
         depend_features = [room, branch]
-
-        drop_features2 = [arrival_month, checkout_month, arrival_day, checkout_day, num_children]
 
         feature_transformer = ColumnTransformer([
             ('one_hot', OneHotEncoder(handle_unknown='ignore', sparse_output=False), one_hot_features),
@@ -142,12 +122,10 @@ class DataPreprocessor:
                 column_checkout_day=checkout_day
             )),
             ('cyclical_encode', CyclicalEncoder(columns_period_map=cyclical_features)),
-            ('drop_cols2', DropColumnsTransformer(drop_features2)),
             ('encode_features', feature_transformer)
         ])
 
         self.preprocessor = preprocessor
-        #return preprocessor
     
 
     def preprocess_target(self, y: pd.Series) -> pd.Series:
@@ -159,7 +137,8 @@ class DataPreprocessor:
         return y
 
     def preprocess_data(self, data_df: pd.DataFrame) -> tuple:
-        """Preprocess the data and split into train/test sets
+        """
+        Preprocess the data and split into train/test sets
             1) identify the target column (no_show)
             2) check any target value is null, investigate the null target rows, drop the row or impute?
             3) separate data into X features and y target 
@@ -167,31 +146,29 @@ class DataPreprocessor:
             5) 
         """
 
-        no_show = self.config['preprocessing']['column_mappings']['target']['no_show']
-
-        # drop target which is null, maybe can have a method to do it.
-        #missing_targets = data[data[no_show].isna()]
+        no_show = safe_get(self.config, 'preprocessing', 'column_mappings', 'target', 'no_show', required=True)
         
-        # Drop the row with null target 
+        # Drop the row with null target
         data_df = data_df.dropna(subset=[no_show])
 
+        # Divide dataset into Train and Target set
         X = data_df.drop(columns=[no_show])
         y = data_df[no_show]
         
         # Preprocess target variable if needed
         y = self.preprocess_target(y)
         
-        # Create and fit preprocessor
-        #if self.preprocessor is None:
-        #    self.create_preprocessing_pipeline()
+        # Create preprocssing pipeline
         self.create_preprocessing_pipeline()
         
-    
         # Split data
+        test_size = safe_get(self.config, 'preprocessing', 'test_size', required=True)
+        random_state = safe_get(self.config, 'preprocessing', 'random_state', required=True)
         X_train, X_test, y_train, y_test = train_test_split(
-            X, y, 
-            test_size=self.config['preprocessing']['test_size'],
-            random_state=self.config['preprocessing']['random_state'],
+            X,
+            y, 
+            test_size=test_size,
+            random_state=random_state,
             stratify=y
         )
         
@@ -199,10 +176,7 @@ class DataPreprocessor:
         X_train_processed = self.preprocessor.fit_transform(X_train)
         X_test_processed = self.preprocessor.transform(X_test)
 
-        final_columns = self.preprocessor.get_feature_names_out()
-        print(final_columns)
-
-        #X_train_processed = preprocessor.fit_transform(X_train)
+        # Wrapped in DataFrame
         X_train_processed = pd.DataFrame(
             X_train_processed, 
             columns=self.preprocessor.get_feature_names_out(), 
@@ -214,7 +188,6 @@ class DataPreprocessor:
             columns=self.preprocessor.get_feature_names_out(), 
             index=X_test.index
         )
-
         
         self.logger.info(f"Data preprocessing completed. Train shape: {X_train_processed.shape}, Test shape: {X_test_processed.shape}")
         

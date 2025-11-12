@@ -18,72 +18,49 @@ data:
     - "num_adults"
     - "num_children"
 
-
 preprocessing:
-  #target_column: "no_show"
   test_size: 0.2
   random_state: 42
   impute_room_strategy: "median"
   impute_price_strategy: "median"
-  #handle_missing: "mean"  # options: mean, median, mode, drop
-
   column_mappings:
-    # Identification
     identifier:
       booking_id: "booking_id"
-    
-    # Target variable
     target:
       no_show: "no_show"
-    
-    # Numerical features (continuous/discrete)
     numerical:
       price: "price"
       num_adults: "num_adults" 
       num_children: "num_children"
-    
-    # Categorical features (discrete categories)
     categorical:
       branch: "branch"
       room: "room"
       country: "country"
       platform: "platform"
-    
-    # Temporal features (time-based)
     temporal:
       arrival_month: "arrival_month"
       checkout_month: "checkout_month"
       booking_month: "booking_month"
       arrival_day: "arrival_day"
       checkout_day: "checkout_day"
-    
-    # Boolean features (true/false)
     boolean:
       first_time: "first_time"
 
-
-
-#model_training:
 training:
   cv_folds: 5
-  scoring_metric: "accuracy" #  'accuracy', 'f1', 'f1_macro', 'precision', 'recall', 'roc_auc'
+  scoring_metric: "accuracy"                    # "accuracy", "f1", "f1_macro", "precision", "recall", "roc_auc"
   save_model: true
   model_output_path: "models/trained_model.pkl"
-  mode: "model"                                 # "tunning"=run hyperparameter tuning, "model"=run model direct 
-  tunning: False                                # False=no tunning direct train, True=tune first then train
-  select_feature: True                          # False=use all features, True=use selectFromModel features
+  tunning: True                                # False=no tunning, run model, True=tune then run model
+  select_feature: False                          # False=use all features, True=use selectFromModel features
+  drop_feature: True                           # Drop features according to feature_selection -> drop_features
 
-feature:
-  feature_selection_k: "all"    #min features
-  feature_selection_threshold: "mean"   #"median", "mean"
+feature_selection:
+  #feature_selection_k: "all"                    # min features
+  feature_selection_threshold: "median"           # "median", "mean"
 
-tunning:
-  algorithm: "random_forest" #"svm" #"xgboost" #"logistic_regression" #"random_forest"  # options: random_forest, logistic_regression, xgboost, svm
-  search_strategy: "grid" #"random"  # grid
-  n_iter: 20
-  n_jobs: -1
-  random_state: 42
-  feature_selection:
+  # Base params for select from model use
+  hyperparameters:
     random_forest:
       n_estimators: 100    
       max_depth: 10
@@ -99,28 +76,56 @@ tunning:
       random_state: 42
     xgboost:
       n_estimators: 100
-      max_depth: 3,
-      learning_rate: 0.1,
-      subsample: 0.8,
-      colsample_bytree: 0.8,
-      random_state: 42,
-      use_label_encoder: False,
+      max_depth: 3
+      learning_rate: 0.1
+      subsample: 0.8
+      colsample_bytree: 0.8
+      random_state: 42
+      use_label_encoder: False
       eval_metric: 'logloss'
     svm:
       C: 1.0
       kernel: 'linear'
-      max_iter: 1000
+      max_iter: 1000,
       random_state: 42
+
+  # Manual select features to drop
+  features_to_drop:
+    - "minmax__num_children"
+    - "remainder__arrival_month"
+    - "remainder__arrival_day"
+    - "remainder__checkout_month"
+    - "remainder__checkout_day"
+    - "remainder__arrival_month_sin"
+    - "remainder__arrival_month_cos"
+    - "remainder__checkout_month_sin"
+    - "remainder__checkout_month_cos"
+    - "remainder__arrival_day_sin"
+    - "remainder__arrival_day_cos"
+    - "remainder__checkout_day_sin"
+    - "remainder__checkout_day_cos"
+    - "remainder__booking_month"
+    - "remainder__booking_month_sin"
+    - "remainder__booking_month_cos"
+
+tunning:
+  algorithm: "random_forest"                          # "svm", "xgboost", "logistic_regression", "random_forest"
+  search_strategy: "random"                     # "grid", "random"
+  n_iter: 20
+  n_jobs: -1
+  random_state: 42
+
+  # Hyperparameters tunning use
   hyperparameters:
     random_forest:
-      n_estimators: [100, 200, 300, 400]        # More trees for large dataset
-      max_depth: [15, 20, 25, 30, null]         # Deeper trees can handle complexity
-      min_samples_split: [50, 100, 200]         # Larger values prevent overfitting
-      min_samples_leaf: [25, 50, 100]           # Larger values for stability
-      max_features: [0.3, 0.5, 'sqrt', 'log2']  # Include fractions for feature sampling
+      n_estimators: [100, 200, 300, 400]
+      max_depth: [15, 20, 25, 30, null]
+      min_samples_split: [50, 100, 200]
+      min_samples_leaf: [25, 50, 100]
+      max_features: [0.3, 0.5, 'sqrt', 'log2']
     logistic_regression:
-      C: [0.1, 0.5, 1.0, 10.0]                # Multiple values for tuning
-      max_iter: [2000]                         # Fixed value
+      C: [0.1, 0.5, 1.0, 10.0]
+      max_iter: [2000]
       penalty: ['l1', 'l2']
       solver: ['liblinear', 'saga']
     xgboost:
@@ -132,48 +137,35 @@ tunning:
       C: [0.1, 1.0, 10.0]
       kernel: ['rbf', 'linear']
 
+
+# Optimized parameters after hyperparameters tuning, ready for model training
 model:
-  algorithm: "random_forest"  # options: random_forest, logistic_regression, xgboost, svm
+  algorithm: "random_forest"     # "random_forest", "logistic_regression", "xgboost", "svm"
   hyperparameters:
-    random_forest:                #randomize_search winner
-      #n_estimators: 100
-      #max_depth: 10
-      #random_state: 42
-      ##n_estimators: 300
-      #min_samples_split: 50
-      #min_samples_leaf: 25 
-      #max_features: 0.3 
-      #max_depth: 25
-      # {'n_estimators': 200, 'min_samples_split': 50, 'min_samples_leaf': 25, 'max_features': 0.3, 'max_depth': 20}
-      # {'max_depth': 15, 'max_features': 0.3, 'min_samples_leaf': 50, 'min_samples_split': 200, 'n_estimators': 100}
-      n_estimators: 200           #76.94
+    random_forest:
+      n_estimators: 200
       min_samples_split: 50
       min_samples_leaf: 25
       max_features: 0.3
       max_depth: 20
       random_state: 42
-    logistic_regression:          #randomize_search winner
-      #C: 0.5   #1.0
-      #max_iter: 1000
+    logistic_regression:
       random_state: 42
       solver: 'saga'
       penalty: 'l1'
       max_iter: 2000              
       C: 0.1
-    xgboost:                      #randomize_search winner
-      #n_estimators: 100
-      #max_depth: 6
-      #learning_rate: 0.1
+    xgboost:
       random_state: 42
       subsample: 0.8
       n_estimators: 300
       max_depth: 9
-      learning_rate: 0.1
-    svm:                          #randomize_search winner
+      learning_rate: 0.1 
+      #{'subsample': 0.8, 'n_estimators': 300, 'max_depth': 3, 'learning_rate': 0.1}
+    svm:
       C: 1.0
       kernel: "rbf"
       random_state: 42
-
 
 
 evaluation:
@@ -182,12 +174,7 @@ evaluation:
     - "precision"
     - "recall"
     - "f1"
+    - "f1_macro"
     - "roc_auc"
   save_reports: true
   reports_path: "reports/"
-
-# optional logging and evaluation
-#evaluation:
-#  metrics: ["accuracy", "rmse"]
-
-
