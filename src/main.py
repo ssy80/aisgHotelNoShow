@@ -8,8 +8,8 @@ def main():
         pipeline = MlPipeline(config_file)
         pipeline.run()
 
-        #results = pipeline.run()
-        #print(f"\nPipeline results: {results}")
+        results = pipeline.run()
+        print(f"\nPipeline results: {results}")
         print("Pipeline completed successfully!")
         
     except Exception as e:

@@ -9,3 +9,4 @@ statsmodels
 PyYAML
 scikit-learn
 xgboost
+pytest

@@ -19,13 +19,7 @@ class CyclicalEncoder(BaseEstimator, TransformerMixin):
             if col in X_copy.columns:
                 X_copy[f"{col}_sin"] = np.sin(2 * np.pi * X_copy[col] / period)
                 X_copy[f"{col}_cos"] = np.cos(2 * np.pi * X_copy[col] / period)
-                #X_copy.drop(columns=[col], inplace=True)  # optional: drop original
         return X_copy
-
-    '''def get_feature_names_out(self, input_features=None):
-        if input_features is None:
-            input_features = getattr(self, "feature_names_in_", None)
-        return list(input_features) + self.added_features_'''
 
     def get_feature_names_out(self, input_features=None):
         if input_features is None:

@@ -12,7 +12,7 @@ from models.tunning_model import TunningModel
 
 class MlPipeline:
     """?"""
-    
+
     def __init__(self, config_path: str):
 
         self.config = load_config(config_path)
@@ -53,12 +53,14 @@ class MlPipeline:
             
             # Manually drop features if True
             drop_feature = safe_get(self.config, 'training', 'drop_feature', required=True)
+
             if drop_feature:
                 features_to_drop = safe_get(self.config, 'feature_selection', 'features_to_drop', required=True)
                 X_train, X_test = self.drop_features(X_train, X_test, features_to_drop)
                 self.logger.info(f"After Drop Features: ({len(X_train.columns)}), {X_train.columns}")
 
             trainer = ModelTrainer(self.config)
+            #model = trainer.get_model(tunning)
 
             if tunning == False:
                 self.logger.info("Hyperparameter tuning (False) not needed")
@@ -100,21 +102,22 @@ class MlPipeline:
                 self.logger.info("Model Training")
                 model, cv_scores = trainer.train_final_model(X_train, y_train, best_params)
 
-
             # 4. Model Evaluation
             self.logger.info("Step 4: Model Evaluation")
             evaluator = ModelEvaluator(self.config)
             metrics, cm, class_report = evaluator.evaluate_model(model, X_test, y_test)
+            scoring = safe_get(self.config, 'training', 'scoring_metric', required=True)
+            self.logger.info(f"{scoring}: {metrics.get(scoring, 'N/A'):.4f}")
             
             # 5. Save Model
             self.logger.info("Step 5: Saving Model")
             trainer.save_model(fitted_preprocessor)
-            
+
             self.logger.info("ML Training Pipeline completed successfully!")
             
             return {
                 'model': model,
-                'preprocessor': fitted_preprocessor,
+                #'preprocessor': fitted_preprocessor,
                 'metrics': metrics,
                 'cv_scores': cv_scores,
                 'confusion_matrix': cm

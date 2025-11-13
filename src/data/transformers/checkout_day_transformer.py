@@ -22,17 +22,5 @@ class CheckoutDayTransformer(BaseEstimator, TransformerMixin):
             raise ValueError(f"CheckoutDayTransformer - column not found: {self.column_name}")
         return X_copy
 
-    '''def get_feature_names_out(self, input_features=None):
-        """Return feature names unchanged since no columns are added or removed"""
-        if input_features is None:
-            # if pipeline passes a DataFrame at fit time, we can retain its columns
-            input_features = [self.column_name]
-        return input_features'''
-
-    '''def get_feature_names_out(self, input_features=None):
-        if input_features is None:
-            input_features = getattr(self, "feature_names_in_", None)
-        return list(input_features)'''
-
     def get_feature_names_out(self, input_features=None):
         return list(getattr(self, "feature_names_in_", []))

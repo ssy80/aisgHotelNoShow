@@ -19,7 +19,7 @@ data:
     - "num_children"
 
 preprocessing:
-  test_size: 0.2
+  test_size: 0.3
   random_state: 42
   impute_room_strategy: "median"
   impute_price_strategy: "median"
@@ -48,15 +48,14 @@ preprocessing:
 
 training:
   cv_folds: 5
-  scoring_metric: "accuracy"                    # "accuracy", "f1", "f1_macro", "precision", "recall", "roc_auc"
+  scoring_metric: "roc_auc"                    # "accuracy", "f1", "f1_macro", "precision", "recall", "roc_auc"
   save_model: true
   model_output_path: "models/trained_model.pkl"
-  tunning: True                                # False=no tunning, run model, True=tune then run model
+  tunning: False                                # False=no tunning, run model, True=tune then run model
   select_feature: False                          # False=use all features, True=use selectFromModel features
-  drop_feature: True                           # Drop features according to feature_selection -> drop_features
+  drop_feature: False                           # Drop features according to feature_selection -> drop_features
 
 feature_selection:
-  #feature_selection_k: "all"                    # min features
   feature_selection_threshold: "median"           # "median", "mean"
 
   # Base params for select from model use
@@ -108,6 +107,7 @@ feature_selection:
     - "remainder__booking_month_sin"
     - "remainder__booking_month_cos"
 
+
 tunning:
   algorithm: "random_forest"                          # "svm", "xgboost", "logistic_regression", "random_forest"
   search_strategy: "random"                     # "grid", "random"
@@ -143,12 +143,12 @@ model:
   algorithm: "random_forest"     # "random_forest", "logistic_regression", "xgboost", "svm"
   hyperparameters:
     random_forest:
-      n_estimators: 200
+      n_estimators: 300
       min_samples_split: 50
       min_samples_leaf: 25
       max_features: 0.3
-      max_depth: 20
-      random_state: 42
+      max_depth: 25
+      random_state: 42   
     logistic_regression:
       random_state: 42
       solver: 'saga'
@@ -159,9 +159,8 @@ model:
       random_state: 42
       subsample: 0.8
       n_estimators: 300
-      max_depth: 9
+      max_depth: 3
       learning_rate: 0.1 
-      #{'subsample': 0.8, 'n_estimators': 300, 'max_depth': 3, 'learning_rate': 0.1}
     svm:
       C: 1.0
       kernel: "rbf"

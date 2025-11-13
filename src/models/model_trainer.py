@@ -14,8 +14,8 @@ from utils.model_helper import get_base_model_class
 
 class ModelTrainer:
     def __init__(self, config: dict):
-        """?"""
-
+        """Initialize ModelTrainer with configuration."""
+        
         if config is None:
             raise ValueError(f"ModelTrainer __init__: config cannot be None")
 
@@ -51,7 +51,7 @@ class ModelTrainer:
             scoring = scoring
         )
         
-        self.logger.info(f"Cross-validation scores: {cv_scores}")
+        self.logger.info(f"Cross-validation scores ({scoring}): {cv_scores}")
         self.logger.info(f"Mean CV score: {cv_scores.mean():.4f} (+/- {cv_scores.std() * 2:.4f})")
         
         # Train final model
@@ -79,9 +79,13 @@ class ModelTrainer:
             cv = cv,
             scoring = scoring
         )
+
+        self.logger.info(f"Cross-validation scores ({scoring}): {cv_scores}")
+        self.logger.info(f"Mean CV score: {cv_scores.mean():.4f} (+/- {cv_scores.std() * 2:.4f})")
         
         # Fit model on full training data
         self.model.fit(X_train, y_train)
+        self.logger.info("Model training completed")
         
         return self.model, cv_scores
 

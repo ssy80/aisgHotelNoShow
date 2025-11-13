@@ -53,7 +53,8 @@ class ModelEvaluator:
         class_report = classification_report(y_test, y_pred, output_dict=True)
         
         self.logger.info("Model evaluation completed")
-        self.logger.info(f"Test Accuracy: {metrics.get('accuracy', 'N/A'):.4f}")
+        #self.logger.info(f"Test Accuracy: {metrics.get('accuracy', 'N/A'):.4f}")
+        #self.logger.info(f"{evaluation_metrics}: {metrics.get({evaluation_metrics}, 'N/A'):.4f}")  
         
         # Save reports if configured
         save_reports = safe_get(self.config, 'evaluation', 'save_reports', required=True)
