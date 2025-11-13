@@ -51,45 +51,14 @@ training:
   scoring_metric: "roc_auc"                    # "accuracy", "f1", "f1_macro", "precision", "recall", "roc_auc"
   save_model: true
   model_output_path: "models/trained_model.pkl"
-  tunning: False                                # False=no tunning, run model, True=tune then run model
+  tuning: True                                # False=no tuning, run model, True=tune then run model
   select_feature: False                          # False=use all features, True=use selectFromModel features
   drop_feature: False                           # Drop features according to feature_selection -> drop_features
+  cross_validate: False                      # True=perform cross validation during training, False=skip cross validation
 
 feature_selection:
   feature_selection_threshold: "median"           # "median", "mean"
-
-  # Base params for select from model use
-  hyperparameters:
-    random_forest:
-      n_estimators: 100    
-      max_depth: 10
-      min_samples_split: 5
-      min_samples_leaf: 2
-      random_state: 42
-      n_jobs: -1
-    logistic_regression:
-      penalty: 'l2'
-      solver: 'saga'
-      C: 1.0
-      max_iter: 2000
-      random_state: 42
-    xgboost:
-      n_estimators: 100
-      max_depth: 3
-      learning_rate: 0.1
-      subsample: 0.8
-      colsample_bytree: 0.8
-      random_state: 42
-      use_label_encoder: False
-      eval_metric: 'logloss'
-    svm:
-      C: 1.0
-      kernel: 'linear'
-      max_iter: 1000,
-      random_state: 42
-
-  # Manual select features to drop
-  features_to_drop:
+  features_to_drop:                               # Manual select features to drop
     - "minmax__num_children"
     - "remainder__arrival_month"
     - "remainder__arrival_day"
@@ -108,15 +77,12 @@ feature_selection:
     - "remainder__booking_month_cos"
 
 
-tunning:
-  algorithm: "random_forest"                          # "svm", "xgboost", "logistic_regression", "random_forest"
-  search_strategy: "random"                     # "grid", "random"
+tuning:
+  search_strategy: "random"                                 # "grid", "random"
   n_iter: 20
   n_jobs: -1
   random_state: 42
-
-  # Hyperparameters tunning use
-  hyperparameters:
+  hyperparameters:                                 # Hyperparameters parameter grid for tuning
     random_forest:
       n_estimators: [100, 200, 300, 400]
       max_depth: [15, 20, 25, 30, null]
@@ -138,9 +104,9 @@ tunning:
       kernel: ['rbf', 'linear']
 
 
-# Optimized parameters after hyperparameters tuning, ready for model training
+# Optimized parameters for model training
 model:
-  algorithm: "random_forest"     # "random_forest", "logistic_regression", "xgboost", "svm"
+  algorithm: "logistic_regression"                # "random_forest", "logistic_regression", "xgboost", "svm"
   hyperparameters:
     random_forest:
       n_estimators: 300

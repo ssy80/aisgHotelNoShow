@@ -15,7 +15,7 @@ from utils.model_helper import get_base_model_class
 class ModelTrainer:
     def __init__(self, config: dict):
         """Initialize ModelTrainer with configuration."""
-        
+
         if config is None:
             raise ValueError(f"ModelTrainer __init__: config cannot be None")
 
@@ -23,67 +23,45 @@ class ModelTrainer:
 
         setup_logging()
         self.logger = logging.getLogger(self.__class__.__module__ + '.' + self.__class__.__name__)
-
-    def get_model(self):
-        """Get model instance based on configuration"""
-        
-        algorithm = safe_get(self.config, 'model', 'algorithm', required=True)
-        hyperparams = safe_get(self.config, 'model', 'hyperparameters', algorithm, required=True)
-            
-        base_model_class = get_base_model_class(algorithm)
-        self.model = base_model_class(**hyperparams)
-        return self.model
     
-    def train_model(self, X_train, y_train):
+    def train_model(self, X_train, y_train, best_params=None):
         """Train the model with cross-validation"""
 
-        self.model = self.get_model()
-        
-        cv = safe_get(self.config, 'training', 'cv_folds', required=True)
-        scoring = safe_get(self.config, 'training', 'scoring_metric', required=True)
-        
-        # Perform cross-validation
-        cv_scores = cross_val_score(
-            self.model, 
-            X_train,
-            y_train,
-            cv = cv,
-            scoring = scoring
-        )
-        
-        self.logger.info(f"Cross-validation scores ({scoring}): {cv_scores}")
-        self.logger.info(f"Mean CV score: {cv_scores.mean():.4f} (+/- {cv_scores.std() * 2:.4f})")
-        
-        # Train final model
-        self.model.fit(X_train, y_train)
-        self.logger.info("Model training completed")
-        
-        return self.model, cv_scores
-    
-    def train_final_model(self, X_train, y_train, best_params):
-        """Train final model using best parameters"""
+        cross_validate = safe_get(self.config, 'training', 'cross_validate', required=True)
 
-        # Initialize model with best params
-        algorithm = safe_get(self.config, 'tunning', 'algorithm', required=True)
-        base_model_class = get_base_model_class(algorithm)
-        self.model = base_model_class(**best_params)
-    
-        # Evaluate with cross-validation
-        cv = safe_get(self.config, 'training', 'cv_folds', required=True)
-        scoring = safe_get(self.config, 'training', 'scoring_metric', required=True)
+        if best_params:
+            # Initialize model with best params
+            algorithm = safe_get(self.config, 'model', 'algorithm', required=True)
+            base_model_class = get_base_model_class(algorithm)
+            self.model = base_model_class(**best_params)
+        else:
+            # Get model from config
+            algorithm = safe_get(self.config, 'model', 'algorithm', required=True)
+            hyperparams = safe_get(self.config, 'model', 'hyperparameters', algorithm, required=True)  
+            base_model_class = get_base_model_class(algorithm)
+            self.model = base_model_class(**hyperparams)
 
-        cv_scores = cross_val_score(
-            self.model,
-            X_train,
-            y_train,
-            cv = cv,
-            scoring = scoring
-        )
+        self.logger.info(f"Model for training: {self.model}")
+        self.logger.info(f"Cross-validation: {cross_validate}")
 
-        self.logger.info(f"Cross-validation scores ({scoring}): {cv_scores}")
-        self.logger.info(f"Mean CV score: {cv_scores.mean():.4f} (+/- {cv_scores.std() * 2:.4f})")
+        cv_scores = None
+        if cross_validate:
+            cv = safe_get(self.config, 'training', 'cv_folds', required=True)
+            scoring = safe_get(self.config, 'training', 'scoring_metric', required=True)
+            self.logger.info(f"Perform cross-validation cv: {cv}, scoring: {scoring}")
+            # Perform cross-validation
+            cv_scores = cross_val_score(
+                self.model, 
+                X_train,
+                y_train,
+                cv = cv,
+                scoring = scoring
+            )
+            self.logger.info(f"Cross-validation scores ({scoring}): {cv_scores}")
+            self.logger.info(f"Mean CV score: {cv_scores.mean():.4f} (+/- {cv_scores.std() * 2:.4f})")
         
-        # Fit model on full training data
+        # Train model
+        self.logger.info(f"Perform training")
         self.model.fit(X_train, y_train)
         self.logger.info("Model training completed")
         
@@ -94,11 +72,12 @@ class ModelTrainer:
         self.logger.info("Starting hyperparameter optimization")
         
         # Get base model and parameter grid
-        algorithm = safe_get(self.config, 'tunning', 'algorithm', required=True)
+        algorithm = safe_get(self.config, 'model', 'algorithm', required=True)
         base_model_class = get_base_model_class(algorithm)
-        param_grid = safe_get(self.config, 'tunning', 'hyperparameters', algorithm, required=True)
-        search_strategy = safe_get(self.config, 'tunning', 'search_strategy', required=True)        
-
+        param_grid = safe_get(self.config, 'tuning', 'hyperparameters', algorithm, required=True)
+        search_strategy = safe_get(self.config, 'tuning', 'search_strategy', required=True)
+        self.logger.info(f"Model ({base_model_class}), Strategy ({search_strategy}), Param Grid: {param_grid}")
+        
         model = base_model_class()
         
         # Choose search strategy random or grid
@@ -118,9 +97,9 @@ class ModelTrainer:
 
         scoring_metric = safe_get(self.config, 'training', 'scoring_metric', required=True)
         cv = safe_get(self.config, 'training', 'cv_folds', required=True)
-        n_iter = safe_get(self.config, 'tunning', 'n_iter', required=True)
-        n_jobs = safe_get(self.config, 'tunning', 'n_jobs', required=True)
-        random_state = safe_get(self.config, 'tunning', 'random_state', required=True)
+        n_iter = safe_get(self.config, 'tuning', 'n_iter', required=True)
+        n_jobs = safe_get(self.config, 'tuning', 'n_jobs', required=True)
+        random_state = safe_get(self.config, 'tuning', 'random_state', required=True)
 
         random_search = RandomizedSearchCV(
             estimator=base_model,
@@ -142,8 +121,8 @@ class ModelTrainer:
         
         scoring_metric = safe_get(self.config, 'training', 'scoring_metric', required=True)
         cv = safe_get(self.config, 'training', 'cv_folds', required=True)
-        n_jobs = safe_get(self.config, 'tunning', 'n_jobs', required=True)
-        random_state = safe_get(self.config, 'tunning', 'random_state', required=True)
+        n_jobs = safe_get(self.config, 'tuning', 'n_jobs', required=True)
+        random_state = safe_get(self.config, 'tuning', 'random_state', required=True)
 
         grid_search = GridSearchCV(
             estimator=base_model,
@@ -158,7 +137,8 @@ class ModelTrainer:
         grid_search.fit(X_train, y_train)
         return grid_search.best_params_
 
-    def save_model(self, preprocessor=None):
+    #trainer.save_model(preprocessor=fitted_preprocessor, features_to_drop=features_to_drop, selector=fitted_selector, model=model)
+    def save_model(self, preprocessor=None, features_to_drop=None, selector=None, model=None):
         """Save trained model and preprocessor"""
         
         save_model = safe_get(self.config, 'training', 'save_model', required=True)
@@ -169,9 +149,11 @@ class ModelTrainer:
             
             # Save model and preprocessor together
             pipeline_obj = {
-                'model': self.model,
-                'preprocessor': preprocessor
+                'model': model,
+                'preprocessor': preprocessor,
+                'features_to_drop': features_to_drop,
+                'selector': selector
             }
-            
+            print(pipeline_obj)
             joblib.dump(pipeline_obj, output_path)
             self.logger.info(f"Model saved to {output_path}")

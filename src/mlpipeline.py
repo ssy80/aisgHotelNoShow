@@ -7,7 +7,6 @@ from data.data_preprocessor import DataPreprocessor
 from models.model_trainer import ModelTrainer
 from models.model_evaluator import ModelEvaluator
 from models.feature_selector import FeatureSelector
-from models.tunning_model import TunningModel
 
 
 class MlPipeline:
@@ -46,61 +45,38 @@ class MlPipeline:
             self.logger.info("Step 3: Feature Selection, Hyperparameter Tuning, and Model Training")
 
             # Hyperparameter Tuning needed if True
-            tunning = safe_get(self.config, 'training', 'tunning', required=True)
+            tuning = safe_get(self.config, 'training', 'tuning', required=True)
 
-            # Feature selection needed if True
-            select_feature = safe_get(self.config, 'training', 'select_feature', required=True)
-            
             # Manually drop features if True
             drop_feature = safe_get(self.config, 'training', 'drop_feature', required=True)
-
+            self.logger.info(f"Drop features: {drop_feature}")
+            features_to_drop = None
             if drop_feature:
                 features_to_drop = safe_get(self.config, 'feature_selection', 'features_to_drop', required=True)
                 X_train, X_test = self.drop_features(X_train, X_test, features_to_drop)
                 self.logger.info(f"After Drop Features: ({len(X_train.columns)}), {X_train.columns}")
 
+            # Feature selection needed if True
+            select_feature = safe_get(self.config, 'training', 'select_feature', required=True)
+            self.logger.info(f"Feature selection: {select_feature}")
+            fitted_selector = None
+            if select_feature:
+                selector = FeatureSelector(self.config)
+                X_train, X_test, fitted_selector = selector.select_features(X_train, y_train, X_test)
+                self.logger.info(f"Selected features: {X_train.columns}")
+
+            # Init Model Trainer
             trainer = ModelTrainer(self.config)
-            #model = trainer.get_model(tunning)
 
-            if tunning == False:
-                self.logger.info("Hyperparameter tuning (False) not needed")
-                model = trainer.get_model()
-                self.logger.info(f"Training Model: {model}")
-                
-                # Feature Selection
-                self.logger.info(f"Feature selection: {select_feature}")
-                if select_feature:                                          # True then do select from model features
-                    selector = FeatureSelector(self.config, model)
-                    X_train, X_test, fitted_selector = selector.select_features(X_train, y_train, X_test)
-                    self.logger.info(f"Selected features: {X_train.columns}")
-
-                # Train model
-                self.logger.info("Model Training")
-                model, cv_scores = trainer.train_model(X_train, y_train)
-            
-            if tunning == True:
-                self.logger.info("Hyperparameter tuning (True) needed")
-                
-                # Model to tune, for feature selection
-                tunning = TunningModel(self.config)
-                model = tunning.get_model()
-                self.logger.info(f"Tuning Model: {model}")
-                
-                # Feature Selection
-                self.logger.info(f"Feature selection: {select_feature}")
-                if select_feature:
-                    selector = FeatureSelector(self.config, model)
-                    X_train, X_test, fitted_selector = selector.select_features(X_train, y_train, X_test)
-                    self.logger.info(f"Selected features: {X_train.columns}")
-                
-                # Hyperparameter Tuning
+            self.logger.info(f"Hyperparameter tuning: {tuning}")
+            best_params = None
+            if tuning:
                 self.logger.info("Hyperparameter Tuning")
                 best_params = trainer.find_best_parameters(X_train, y_train)
-                self.logger.info(f"Hyperparameter Best Params: {best_params}")
-                
-                # Train model
-                self.logger.info("Model Training")
-                model, cv_scores = trainer.train_final_model(X_train, y_train, best_params)
+
+            # Train model
+            self.logger.info("Model Training")
+            model, cv_scores = trainer.train_model(X_train, y_train, best_params)
 
             # 4. Model Evaluation
             self.logger.info("Step 4: Model Evaluation")
@@ -111,13 +87,16 @@ class MlPipeline:
             
             # 5. Save Model
             self.logger.info("Step 5: Saving Model")
-            trainer.save_model(fitted_preprocessor)
+            #trainer.save_model(fitted_preprocessor)
+            trainer.save_model(preprocessor=fitted_preprocessor, features_to_drop=features_to_drop, selector=fitted_selector, model=model)
 
-            self.logger.info("ML Training Pipeline completed successfully!")
+            self.logger.info("ML Pipeline completed successfully!")
             
             return {
                 'model': model,
                 #'preprocessor': fitted_preprocessor,
+                #'selector': fitted_selector,
+                #'features_to_drop': features_to_drop,
                 'metrics': metrics,
                 'cv_scores': cv_scores,
                 'confusion_matrix': cm

@@ -22,7 +22,6 @@ from data.transformers.drop_columns_transformer import DropColumnsTransformer
 from sklearn.model_selection import train_test_split
 
 
-
 class DataPreprocessor:
     def __init__(self, config: dict):
 
@@ -35,14 +34,6 @@ class DataPreprocessor:
         # Init logging
         setup_logging()
         self.logger = logging.getLogger(self.__class__.__module__ + '.' + self.__class__.__name__)
-
-    def validate_config(self, features: list ) -> bool:
-        """Validate all feature name is not None"""
-
-        for feature in features:
-            if feature is None:
-                return False
-        return True
     
     def create_preprocessing_pipeline(self) -> Pipeline:
         """Create preprocessing pipeline based on configuration"""
