@@ -10,3 +10,4 @@ PyYAML
 scikit-learn
 xgboost
 pytest
+category_encoders

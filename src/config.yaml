@@ -19,7 +19,7 @@ data:
     - "num_children"
 
 preprocessing:
-  test_size: 0.3
+  test_size: 0.2
   random_state: 42
   impute_room_strategy: "median"
   impute_price_strategy: "median"
@@ -48,37 +48,47 @@ preprocessing:
 
 training:
   cv_folds: 5
-  scoring_metric: "roc_auc"                    # "accuracy", "f1", "f1_macro", "precision", "recall", "roc_auc"
+  scoring_metric: "f1"                    # "accuracy", "f1", "f1_macro", "precision", "recall", "roc_auc"
   save_model: true
   model_output_path: "models/trained_model.pkl"
-  tuning: True                                # False=no tuning, run model, True=tune then run model
-  select_feature: False                          # False=use all features, True=use selectFromModel features
-  drop_feature: False                           # Drop features according to feature_selection -> drop_features
-  cross_validate: False                      # True=perform cross validation during training, False=skip cross validation
+  tuning: false                               # false=no tuning, run model, true=tune then run model
+  select_feature: false                          # false=use all features, true=use selectFromModel features
+  drop_feature: false                           # drop features according to feature_selection -> drop_features
+  cross_validate: false                      # true=perform cross validation during training, false=skip cross validation
 
 feature_selection:
-  feature_selection_threshold: "median"           # "median", "mean"
+  feature_selection_threshold: "mean"           # "median", "mean"
   features_to_drop:                               # Manual select features to drop
-    - "minmax__num_children"
-    - "remainder__arrival_month"
-    - "remainder__arrival_day"
-    - "remainder__checkout_month"
-    - "remainder__checkout_day"
-    - "remainder__arrival_month_sin"
-    - "remainder__arrival_month_cos"
-    - "remainder__checkout_month_sin"
-    - "remainder__checkout_month_cos"
-    - "remainder__arrival_day_sin"
-    - "remainder__arrival_day_cos"
-    - "remainder__checkout_day_sin"
-    - "remainder__checkout_day_cos"
-    - "remainder__booking_month"
-    - "remainder__booking_month_sin"
-    - "remainder__booking_month_cos"
+  - 'one_hot__branch_changi'
+  - 'one_hot__branch_orchard'
+  #- 'remainder__country'
+  - 'remainder__first_time'
+  #- 'robust__price'
+  - 'minmax__num_adults'
+  - 'minmax__num_children'
+  - 'remainder__arrival_day'
+  - 'remainder__checkout_month'
+  - 'remainder__checkout_day'
+  - 'remainder__room'
+  - 'remainder__platform'
+  - 'remainder__has_children'
+  #- 'remainder__stayed_days'
+  #- 'remainder__arrival_month_sin'
+  #- 'remainder__arrival_month_cos'
+  #- 'remainder__checkout_month_sin'
+  #- 'remainder__checkout_month_cos'
+  #- 'remainder__booking_month_sin'
+  #- 'remainder__booking_month_cos'
+  #- 'remainder__arrival_day_sin'
+  #- 'remainder__arrival_day_cos'
+  #- 'remainder__checkout_day_sin'
+  #- 'remainder__checkout_day_cos'
+  - 'remainder__booking_month'
+  - 'remainder__arrival_month'
 
 
 tuning:
-  search_strategy: "random"                                 # "grid", "random"
+  search_strategy: "grid"                                 # "grid", "random"
   n_iter: 20
   n_jobs: -1
   random_state: 42
@@ -89,24 +99,29 @@ tuning:
       min_samples_split: [50, 100, 200]
       min_samples_leaf: [25, 50, 100]
       max_features: [0.3, 0.5, 'sqrt', 'log2']
+      class_weight: ['balanced']
     logistic_regression:
       C: [0.1, 0.5, 1.0, 10.0]
       max_iter: [2000]
-      penalty: ['l1', 'l2']
-      solver: ['liblinear', 'saga']
+      #penalty: ['l1', 'l2']
+      penalty: ['l2']
+      solver: ['liblinear', 'saga', 'lbfgs']
+      class_weight: ['balanced']
     xgboost:
       n_estimators: [50, 100, 200, 300]
-      max_depth: [3, 6, 9]
+      max_depth: [3, 6, 9, 10]
       learning_rate: [0.01, 0.1, 0.2]
       subsample: [0.8, 0.9, 1.0]
+      scale_pos_weight: [1.0, 1.5, 2.0, 2.5]
     svm:
       C: [0.1, 1.0, 10.0]
       kernel: ['rbf', 'linear']
+      class_weight: ['balanced']
 
 
 # Optimized parameters for model training
 model:
-  algorithm: "logistic_regression"                # "random_forest", "logistic_regression", "xgboost", "svm"
+  algorithm: "random_forest"                # "random_forest", "logistic_regression", "xgboost", "svm"
   hyperparameters:
     random_forest:
       n_estimators: 300
@@ -114,26 +129,32 @@ model:
       min_samples_leaf: 25
       max_features: 0.3
       max_depth: 25
-      random_state: 42   
+      random_state: 42
+      class_weight: "balanced"
     logistic_regression:
       random_state: 42
-      solver: 'saga'
-      penalty: 'l1'
+      solver: 'liblinear'
+      penalty: 'l2'
       max_iter: 2000              
-      C: 0.1
+      C: 10
+      class_weight: "balanced"
     xgboost:
       random_state: 42
-      subsample: 0.8
-      n_estimators: 300
-      max_depth: 3
-      learning_rate: 0.1 
+      subsample: 0.9
+      n_estimators: 100
+      max_depth: 10
+      learning_rate: 0.2
+      scale_pos_weight: 1.0
     svm:
       C: 1.0
       kernel: "rbf"
       random_state: 42
+      class_weight: "balanced"
 
 
 evaluation:
+  save_reports: true
+  reports_path: "reports/"
   metrics:
     - "accuracy"
     - "precision"
@@ -141,5 +162,3 @@ evaluation:
     - "f1"
     - "f1_macro"
     - "roc_auc"
-  save_reports: true
-  reports_path: "reports/"

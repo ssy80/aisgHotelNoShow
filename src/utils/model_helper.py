@@ -5,8 +5,8 @@ from xgboost import XGBClassifier
 
 
 def get_base_model_class(algorithm: str) -> object:
-    """?"""
-
+    """Return the model class for a given algorithm name."""
+    
     model_map = {
         'random_forest': RandomForestClassifier,
         'logistic_regression': LogisticRegression,
@@ -17,6 +17,4 @@ def get_base_model_class(algorithm: str) -> object:
     if algorithm not in model_map:
         raise ValueError(f"Unsupported algorithm: {algorithm}")
 
-    base_model_class = model_map[algorithm]
-
-    return base_model_class
+    return model_map[algorithm]

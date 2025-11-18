@@ -20,24 +20,36 @@ from data.transformers.log1p_transformer import Log1pTransformer
 from data.encoders.cyclical_encoder import CyclicalEncoder
 from data.transformers.drop_columns_transformer import DropColumnsTransformer
 from sklearn.model_selection import train_test_split
+from category_encoders import TargetEncoder
 
 
 class DataPreprocessor:
-    def __init__(self, config: dict):
+    """
+    Builds and runs the full preprocessing pipeline for the dataset.
+    """
 
+    def __init__(self, config: dict):
+        """
+        Initializes the preprocessor with configuration and logging.
+        """
         if config is None:
-            raise ValueError(f"DataPreprocessor __init__: config cannot be None")
+            raise ValueError("DataPreprocessor __init__: config cannot be None")
 
         self.config = config
         self.data_preprocessor = None
 
-        # Init logging
         setup_logging()
         self.logger = logging.getLogger(self.__class__.__module__ + '.' + self.__class__.__name__)
-    
-    def create_preprocessing_pipeline(self) -> Pipeline:
-        """Create preprocessing pipeline based on configuration"""
 
+    def create_preprocessing_pipeline(self) -> Pipeline:
+        """
+        Creates the full preprocessing pipeline:
+        - Cleans raw fields
+        - Imputes missing values
+        - Encodes categorical features
+        - Scales numerical features
+        - Adds engineered features
+        """
         config_column_mappings = safe_get(self.config, 'preprocessing', 'column_mappings', required=True)
 
         booking_id = safe_get(config_column_mappings, 'identifier', 'booking_id', required=True)
@@ -58,7 +70,7 @@ class DataPreprocessor:
 
         impute_room_strategy = safe_get(self.config, 'preprocessing', 'impute_room_strategy', required=True)
         impute_price_strategy = safe_get(self.config, 'preprocessing', 'impute_price_strategy', required=True)
-    
+
         lowercase_features = [branch, booking_month, arrival_month, checkout_month, country, first_time, num_adults, platform, room, price]
         int_features = [arrival_day, num_children, checkout_day]
 
@@ -69,21 +81,22 @@ class DataPreprocessor:
             arrival_day: 31,
             checkout_day: 31
         }
-        
+
         drop_features = [booking_id]
         month_features = [booking_month, arrival_month, checkout_month]
         robust_features = [price]
         minmax_features = [num_adults, num_children]
-        one_hot_features = [branch, country, room, platform]
         depend_features = [room, branch]
+
+        one_hot_features = [branch]
+        target_encoding_features = [room, country, platform]
 
         feature_transformer = ColumnTransformer([
             ('one_hot', OneHotEncoder(handle_unknown='ignore', sparse_output=False), one_hot_features),
             ('robust', RobustScaler(), robust_features),
-            ('minmax', MinMaxScaler(), minmax_features), 
-            ], remainder='passthrough')
+            ('minmax', MinMaxScaler(), minmax_features),
+        ], remainder='passthrough')
 
-        # Create the full pipeline
         preprocessor = Pipeline([
             ('drop_cols', DropColumnsTransformer(drop_features)),
             ('lowercase', LowercaseTransformer(columns=lowercase_features)),
@@ -102,7 +115,6 @@ class DataPreprocessor:
                 branch_column=branch,
                 strategy=impute_room_strategy
             )),
-            ('log_price', Log1pTransformer(columns=[price])),
             ('int_convert', IntTransformer(columns=int_features)),
             ('clean_checkout_day', CheckoutDayTransformer(column_name=checkout_day)),
             ('add_has_children', HasChildrenTransformer(column_name=num_children)),
@@ -112,16 +124,17 @@ class DataPreprocessor:
                 column_checkout_month=checkout_month,
                 column_checkout_day=checkout_day
             )),
+            ('log_features', Log1pTransformer(columns=[price, 'stayed_days'])),
             ('cyclical_encode', CyclicalEncoder(columns_period_map=cyclical_features)),
+            ('target_encode', TargetEncoder(cols=target_encoding_features)),
             ('encode_features', feature_transformer)
         ])
 
         self.preprocessor = preprocessor
-    
 
     def preprocess_target(self, y: pd.Series) -> pd.Series:
-        """Preprocess the target variable
-            convert the target dtype from float to int
+        """
+        Converts the target column to int if needed.
         """
         if y.dtype == "float64":
             y = y.astype(int)
@@ -129,57 +142,58 @@ class DataPreprocessor:
 
     def preprocess_data(self, data_df: pd.DataFrame) -> tuple:
         """
-        Preprocess the data and split into train/test sets
-            1) identify the target column (no_show)
-            2) check any target value is null, investigate the null target rows, drop the row or impute?
-            3) separate data into X features and y target 
-            4) preprocess the target - convert from float to int
-            5) 
+        Runs the full preprocessing workflow:
+        - Drops rows with missing target values
+        - Splits into features and target
+        - Converts target type
+        - Builds preprocessing pipeline
+        - Splits into train/test
+        - Fits pipeline on train and transforms both
+        Returns processed train/test sets and the pipeline.
         """
-
         no_show = safe_get(self.config, 'preprocessing', 'column_mappings', 'target', 'no_show', required=True)
-        
-        # Drop the row with null target
+
         data_df = data_df.dropna(subset=[no_show])
 
-        # Divide dataset into Train and Target set
         X = data_df.drop(columns=[no_show])
         y = data_df[no_show]
-        
-        # Preprocess target variable if needed
+
         y = self.preprocess_target(y)
-        
-        # Create preprocssing pipeline
+
         self.create_preprocessing_pipeline()
-        
-        # Split data
+
         test_size = safe_get(self.config, 'preprocessing', 'test_size', required=True)
         random_state = safe_get(self.config, 'preprocessing', 'random_state', required=True)
+
         X_train, X_test, y_train, y_test = train_test_split(
             X,
-            y, 
+            y,
             test_size=test_size,
             random_state=random_state,
             stratify=y
         )
-        
-        # Fit and transform training data
-        X_train_processed = self.preprocessor.fit_transform(X_train)
+
+        X_train_processed = self.preprocessor.fit_transform(X_train, y_train) #y_train for target encoder
         X_test_processed = self.preprocessor.transform(X_test)
 
-        # Wrapped in DataFrame
         X_train_processed = pd.DataFrame(
-            X_train_processed, 
-            columns=self.preprocessor.get_feature_names_out(), 
+            X_train_processed,
+            columns=self.preprocessor.get_feature_names_out(),
             index=X_train.index
         )
-    
+
+        print(X_train_processed['remainder__country'].dtype)
+        print(X_train_processed['remainder__room'].dtype)
+        print(X_train_processed['remainder__platform'].dtype)
+
         X_test_processed = pd.DataFrame(
-            X_test_processed, 
-            columns=self.preprocessor.get_feature_names_out(), 
+            X_test_processed,
+            columns=self.preprocessor.get_feature_names_out(),
             index=X_test.index
         )
-        
-        self.logger.info(f"Data preprocessing completed. Train shape: {X_train_processed.shape}, Test shape: {X_test_processed.shape}")
-        
+
+        self.logger.info(
+            f"Data preprocessing completed. Train shape: {X_train_processed.shape}, Test shape: {X_test_processed.shape}"
+        )
+
         return X_train_processed, X_test_processed, y_train, y_test, self.preprocessor

@@ -6,7 +6,7 @@ from exception.config_key_error import ConfigKeyError
 
 
 def setup_logging():
-    """Setup logging configuration"""
+    """Set up basic logging for the pipeline."""
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -19,7 +19,7 @@ def setup_logging():
 
 
 def load_config(config_path: str = "config.yaml") -> Dict[str, Any]:
-    """Load configuration from YAML file"""
+    """Load YAML configuration file."""
     try:
         with open(config_path, 'r') as file:
             config = yaml.safe_load(file)
@@ -32,19 +32,19 @@ def load_config(config_path: str = "config.yaml") -> Dict[str, Any]:
 
 def safe_get(config: dict, *keys, default=None, required=False):
     """
-    Safely retrieve nested keys from a config dictionary.
-    
+    Safely get a nested value from a config dictionary.
+
     Args:
-        config (dict): The config dictionary.
-        *keys: Sequence of keys to traverse (e.g. 'preprocessing', 'column_mappings', 'target', 'no_show').
-        default: Default value to return if the key is missing (only used if required=False).
-        required (bool): If True, raises ConfigKeyError when missing.
+        config (dict): Configuration dictionary.
+        *keys: Keys to traverse.
+        default: Value to return if key not found.
+        required (bool): If True, raise error when missing.
 
     Returns:
-        The found value or default.
+        Value found or default.
 
     Raises:
-        ConfigKeyError: If a required key path is missing.
+        ConfigKeyError: If required key is missing.
     """
     value = config
     path = []

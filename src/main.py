@@ -6,7 +6,6 @@ def main():
         # Initialize and run pipeline
         config_file = "src/config.yaml"
         pipeline = MlPipeline(config_file)
-        #pipeline.run()
 
         results = pipeline.run()
         print(f"\nPipeline results: {results}")

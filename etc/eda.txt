@@ -45,3 +45,10 @@ Categorical vs. Categorical	1. Stacked Bar Plot
 4. Heatmap (with counts)
 
 
+
+
+Insights:
+- Majority of bookings is place through hotel web site.
+
+Preprocessing:
+- Target Encoding will likely improve predictive power.
